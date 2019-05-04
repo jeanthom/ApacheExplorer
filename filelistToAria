@@ -1,0 +1,13 @@
+#! /usr/bin/env ruby
+
+require 'uri'
+
+file = File.new(ARGV[1], 'w')
+
+File.readlines(ARGV[0]).each do |line|
+  path = URI(line.strip).path
+  file.write(line.strip + "\n")
+  file.write(" dir=" + File.dirname(path) + "\n")
+  file.write(" out=" + File.basename(path) + "\n")
+  file.write("\n")
+end
