@@ -1,0 +1,54 @@
+#! /usr/bin/env ruby
+
+require 'nokogiri'
+require 'open-uri'
+require 'uri'
+
+def exploreURL(url)
+  files = []
+
+  puts "Exploring #{url} folder"
+
+  begin
+    doc = Nokogiri::HTML(open(url))
+    doc.css('table tbody', 'tr').each do |tableRow|
+      # Skipping header rows
+      unless tableRow.children[0].name == "th" then
+        icon = tableRow.children[0] > 'img'
+        link = tableRow.children[1] > 'a'
+        if icon[0]['alt'] == "[DIR]" and link[0].content != "Parent Directory" then
+          files << exploreURL(URI.join(url, link[0]['href']).to_s)
+        elsif icon[0]['alt'] == '[   ]' then
+          files.push URI.join(url, link[0]['href']).to_s
+        end
+      end
+    end
+  
+    # Sometimes it is formatted using a <pre>, we have no choice but to
+    # parse XML for each line
+    doc.css('pre').each do |pre|
+      pre.inner_html.each_line do |line|
+        preLineNode = Nokogiri::HTML.fragment(line)
+  
+        icon = preLineNode.css('img')
+        link = preLineNode.css('a')
+  
+        if icon[0] and link[0] then
+          if icon[0]['alt'] == '[DIR]' and link[0].content != "Parent Directory" then
+            files << exploreURL(URI.join(url, link[0]['href']).to_s)
+          elsif icon[0]['alt'] == '[   ]' then
+            files.push URI.join(url, link[0]['href']).to_s
+          end
+        end
+      end
+    end
+  rescue OpenURI::HTTPError
+    puts "404 error on #{url}"
+  end
+
+  return files
+end
+
+files = exploreURL ARGV[0]
+file = File.new(ARGV[1], 'w')
+file.write(files.join("\n"))
